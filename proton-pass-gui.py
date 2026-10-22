@@ -212,11 +212,21 @@ class ProtonPassLibremApp(Adw.Application):
         self.cli = PassCliClient()
         self.current_items: List[Dict[str, Any]] = []
         self.active_vault = "all"
+        # Connect to the startup signal cleanly without vfunc trampoline issues
+        self.connect("startup", self.on_startup)
 
-    def do_startup(self):
-        super().do_startup()
+    def on_startup(self, app):
         style_provider = Gtk.CssProvider()
-        style_provider.load_from_data(CUSTOM_CSS)
+        
+        # Ensures compatibility across GTK 4.8 (Debian Bookworm) and newer (GTK 4.12+)
+        if hasattr(style_provider, "load_from_string"):
+            style_provider.load_from_string(CUSTOM_CSS.decode("utf-8") if isinstance(CUSTOM_CSS, bytes) else CUSTOM_CSS)
+        else:
+            try:
+                style_provider.load_from_data(CUSTOM_CSS if isinstance(CUSTOM_CSS, bytes) else CUSTOM_CSS.encode("utf-8"))
+            except TypeError:
+                style_provider.load_from_data(CUSTOM_CSS.decode("utf-8") if isinstance(CUSTOM_CSS, bytes) else CUSTOM_CSS)
+
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(),
             style_provider,
